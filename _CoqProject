@@ -1,0 +1,6 @@
+-R . "" COQC = hoqc COQDEP = hoqdep
+prelude/HitTactics.v
+interfaces/set_names.v
+interfaces/monad_interface.v
+bags/finite_bags.v
+bags/operations.v
