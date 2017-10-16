@@ -16,14 +16,10 @@ Section monad_operations.
   Variable (F : Type -> Type).
 
   Class hasPure :=
-    {
-      pure : forall (A : Type), A -> F A
-    }.
+      pure : forall (A : Type), A -> F A.
 
   Class hasBind :=
-    {
-      bind : forall (A : Type), F(F A) -> F A
-    }.
+    bind : forall (A : Type), F(F A) -> F A.
 End monad_operations.
 
 Arguments pure {_} {_} _ _.
