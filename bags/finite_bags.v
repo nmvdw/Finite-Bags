@@ -104,3 +104,91 @@ Module Export Bags.
       H_inductor := bag_ind A; H_recursor := bag_rec A
     }.
 End Bags.
+
+Section sum_lems.
+  Context `{Univalence}.
+
+  Lemma sum_assoc_map A B C : A + (B + C) -> (A + B) + C.
+  Proof.
+    intros [a | [b | c]] ; auto.
+  Defined.
+
+  Lemma sum_assoc_map_inv A B C : (A + B) + C -> A + (B + C).
+  Proof.
+    intros [[a | b] | c] ; auto.
+  Defined.
+
+  Global Instance sum_assoc_equiv A B C : IsEquiv (sum_assoc_map A B C).
+  Proof.
+    apply isequiv_biinv.
+    split ; exists (sum_assoc_map_inv A B C).
+    - intros [a | [b | c]] ; reflexivity.
+    - intros [[a | b] | c] ; reflexivity.
+  Defined.
+  
+  Lemma sum_assoc A B C : A + (B + C) <~> (A + B) + C.
+  Proof.
+    simple refine (BuildEquiv _ _ (sum_assoc_map A B C) _).
+  Defined.
+
+  Lemma sum_comm_map A B : A + B -> B + A.
+  Proof.
+    intros [a | b] ; auto.
+  Defined.
+
+  Global Instance sum_comm_equiv A B : IsEquiv (sum_comm_map A B).
+  Proof.
+    apply isequiv_biinv.
+    split ; exists (sum_comm_map B A).
+    - intros [a | b] ; reflexivity.
+    - intros [a | b] ; reflexivity.
+  Defined.
+
+  Lemma sum_comm A B : A + B <~> B + A.
+    simple refine (BuildEquiv _ _ (sum_comm_map A B) _).
+  Defined.
+End sum_lems.
+
+Section member.
+  Context {A : Type} `{Univalence}.
+
+  Ltac trunc_intros := repeat (let X := fresh in refine (Trunc_ind _ _) ; intros X).
+  
+  Definition member1 (a : A) : bag A -> Trunc 0 Type.
+  Proof.
+    hrecursion.
+    - apply tr ; apply Empty.
+    - intros b ; apply tr ; apply (merely (b = a)).
+    - intros X Y.
+      strip_truncations.
+      apply (tr (X + Y)).
+    - trunc_intros.
+      cbn.
+      apply (ap tr).
+      refine (path_universe (sum_assoc _ _ _)).
+    - trunc_intros.
+      cbn.
+      apply (ap tr).
+      refine (path_universe (sum_comm _ _)).
+    - refine (Trunc_ind _ _).
+      intros X' ; cbn.
+      apply (ap tr).
+      refine (path_universe (sum_empty_l _)).
+    - refine (Trunc_ind _ _).
+      intros X' ; cbn.
+      apply (ap tr).
+      refine (path_universe (sum_empty_r _)).
+  Defined.
+
+  Definition member2 (a : A) : bag A -> bag hProp.
+  Proof.
+    hrecursion.
+    - apply ∅.
+    - apply (fun b => {|merely  (b = a)|}).
+    - apply (∪).
+    - apply assoc.
+    - apply comm.
+    - apply nl.
+    - apply nr.
+  Defined.
+End member.
