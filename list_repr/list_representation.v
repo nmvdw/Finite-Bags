@@ -2,7 +2,6 @@
 Require Import HoTT HitTactics.
 Require Export set_names.
 
-
 Lemma ap_f_eq_l
       {A B : Type}
       (f g : A -> B)
@@ -24,17 +23,10 @@ Lemma ap_f_eq_r
       (p : a = b)
   : (e a)^ @ ap f p @ e b = ap g p.
 Proof.
-  induction p ; simpl.
-  refine (ap (fun q => q @ _) (concat_p1 _) @ _).
-  apply (concat_Vp _).
+  rewrite (ap_f_eq_l f g e). hott_simpl.
 Defined.
 
-
-
-
-
 Module Export FBagL.
-
   Section FBagL.
     Private Inductive FBagL (A : Type) : Type :=
     | Nil : FBagL A
@@ -193,57 +185,13 @@ Module Export FBagL.
 
 End FBagL.
 
-Section sum_lems.
-  Context `{Univalence}.
-
-  Lemma sum_assoc_map A B C : A + (B + C) -> (A + B) + C.
-  Proof.
-    intros [a | [b | c]] ; auto.
-  Defined.
-
-  Lemma sum_assoc_map_inv A B C : (A + B) + C -> A + (B + C).
-  Proof.
-    intros [[a | b] | c] ; auto.
-  Defined.
-
-  Global Instance sum_assoc_equiv A B C : IsEquiv (sum_assoc_map A B C).
-  Proof.
-    apply isequiv_biinv.
-    split ; exists (sum_assoc_map_inv A B C).
-    - intros [a | [b | c]] ; reflexivity.
-    - intros [[a | b] | c] ; reflexivity.
-  Defined.
-
-  Lemma sum_assoc A B C : A + (B + C) <~> (A + B) + C.
-  Proof.
-    simple refine (BuildEquiv _ _ (sum_assoc_map A B C) _).
-  Defined.
-
-  Lemma sum_comm_map A B : A + B -> B + A.
-  Proof.
-    intros [a | b] ; auto.
-  Defined.
-
-  Global Instance sum_comm_equiv A B : IsEquiv (sum_comm_map A B).
-  Proof.
-    apply isequiv_biinv.
-    split ; exists (sum_comm_map B A).
-    - intros [a | b] ; reflexivity.
-    - intros [a | b] ; reflexivity.
-  Defined.
-
-  Lemma sum_comm A B : A + B <~> B + A.
-    simple refine (BuildEquiv _ _ (sum_comm_map A B) _).
-  Defined.
-
-  Lemma sum_comm_inv A B : sum_comm A B o sum_comm B A = 1%equiv.
-  Proof.
-    apply path_forall. intros [?|?]; reflexivity.
-  Defined.
-End sum_lems.
-
 Section Membership.
-  Context `{Univalence}.
+Context `{Univalence}.
+
+(* TODO: Dan: PR this to the HoTT? *)
+Lemma equiv_sum_symm_comm A B :
+  (equiv_sum_symm A B = (equiv_sum_symm B A)^-1)%equiv.
+Proof. by apply path_equiv. Defined.
 
 Variable A : Type.
 
@@ -253,27 +201,16 @@ Definition member : A -> FBagL A -> Type.
   - apply Empty.
   - intros hd tl. apply (merely (hd = a) + tl).
   - intros x y tl. simpl.
-    refine (path_universe (sum_assoc (Trunc -1 (x = a)) _ _) @ _).
-    refine (ap (fun z => z + tl) (path_universe (sum_comm (Trunc -1 (x = a)) _  )) @ _).
-    refine ((path_universe (sum_assoc (Trunc -1 (y = a)) _ _))^).
-  - intros. simpl. hott_simpl.
-    rewrite !concat_pp_p.
-    rewrite (concat_p_pp (ap (fun z : Type => z + x) _) ).
-    rewrite <- (ap_pp (fun z : Type => z + x)).
-    rewrite <- (path_universe_compose (sum_comm _ _) (sum_comm  _ _)).
-    (* TODO: Dan, look at this *)
-    assert (path_universe (fun x0 : Trunc -1 (a0 = a) + Trunc -1 (b = a) =>
-         (sum_comm (Trunc -1 (b = a)) (Trunc -1 (a0 = a)))
-           ((sum_comm (Trunc -1 (a0 = a)) (Trunc -1 (b = a)))
-              x0)) = idpath).
-    { refine (_ @ path_universe_1).
-      unfold path_universe. simpl.
-      refine (ap path_universe_uncurried _).
-      apply path_equiv.
-      simpl.
-      apply sum_comm_inv. }
-    rewrite X. hott_simpl.
+    refine ((path_universe (equiv_sum_assoc (Trunc -1 (x = a)) _ _))^ @ _).
+    refine (ap (fun z => z + tl) (path_universe (equiv_sum_symm _ _)) @ _).
+    refine (path_universe (equiv_sum_assoc (Trunc -1 (y = a)) _ _)).
+  - intros x y tl. hott_simpl.
+    do 2 rewrite concat_pp_p.
+    rewrite (concat_p_pp (ap (fun z : Type => z + tl) _) ).
+    rewrite <- (ap_pp (fun z : Type => z + tl)).
+    rewrite equiv_sum_symm_comm.
+    rewrite path_universe_V.
+    hott_simpl.
 Defined.
-
 
 End Membership.
