@@ -1,7 +1,9 @@
--R . "" COQC = hoqc COQDEP = hoqdep
+-R . Bags
+COQC = hoqc
+COQDEP = hoqdep
 prelude/HitTactics.v
 interfaces/set_names.v
 interfaces/monad_interface.v
 bags/finite_bags.v
 bags/operations.v
-bags/list_repr/list_representation.v
+list_repr/list_representation.v
