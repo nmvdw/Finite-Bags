@@ -26,6 +26,62 @@ Proof.
   rewrite (ap_f_eq_l f g e). hott_simpl.
 Defined.
 
+Definition concat_Y
+           {A : Type}
+           {Y : A -> Type}
+           {a b c : A}
+           (p1 : a = b)
+           (p2 : b = c)
+           {x : Y a} {y : Y b} {z : Y c}
+           (q1 : p1 # x = y)
+           (q2 : p2 # y = z)
+  : (p1 @ p2) # x = z.
+Proof.
+  refine (transport_pp Y p1 p2 x @ _).
+  refine (ap (transport Y p2) q1 @ q2).
+Defined.
+
+Definition inverse_Y
+           {A : Type}
+           {Y : A -> Type}
+           {a b : A}
+           (p : a = b)
+           {x : Y a} {y : Y b}
+           (q : p # x = y)
+  : p^ # y = x.
+Proof.
+  refine (ap (transport Y p^) q^ @ transport_Vp _ _ _).
+Defined.
+
+Lemma transport_const_pp
+      {A B : Type}
+      {a b c : A}
+      (p1 : a = b)
+      (p2 : b = c)
+      (x : B)
+  : transport_const (p1 @ p2) x
+    =
+    (transport_pp (fun _ : A => B) p1 p2 x)
+      @ (transport_const p2 (transport (fun _ : A => B) p1 x))
+      @ transport_const p1 x.
+Proof.
+  induction p1, p2.
+  reflexivity.
+Defined.
+
+Lemma transport_const_V
+      {A B : Type}
+      {a b : A}
+      (p : a = b)
+      (x : B)
+  : transport_const p^ x
+    =
+    (ap (transport _ p^) (transport_const p x)^)
+      @ transport_Vp _ p x.
+Proof.
+  induction p ; reflexivity.
+Defined.
+
 Module Export FBagL.
   Section FBagL.
     Private Inductive FBagL (A : Type) : Type :=
@@ -48,16 +104,12 @@ Module Export FBagL.
 
     Axiom comm_refl : forall (a b : A) (x : FBagL A),
         (comm a b x) @ (comm b a x) = idpath.
-
-
   End FBagL.
-
 
   Arguments Cns {_} _ _.
   Arguments comm {_} _ _.
   Arguments comm_refl {_} _ _.
   Infix " ;;" := Cns (at level 8, right associativity).
-
 
   Section FBagL_induction.
     Variable (A : Type)
@@ -66,16 +118,15 @@ Module Export FBagL.
              (cnsP : forall (a:A) (x: FBagL A), P x -> P (a ;; x))
              (commP : forall (a b: A) (x: FBagL A) (px: P x),
 		 comm a b x # cnsP a (b ;; x) (cnsP b x px) =
-		 cnsP b (a ;; x) (cnsP a x px))
-             (comm_reflP :
-                forall (a b: A) (x: FBagL A) (px: P x),
-                  let abxP := (cnsP a b ;; x (cnsP b x px)) in
-                  let baxP := (cnsP b a ;; x (cnsP a x px)) in
-                  let step1 := (transport_pp P (comm a b x) (comm b a x)) abxP in
-                  let step2 :=
-                      (ap (transport P (comm b a x)) (commP a b x px)) in
-                  let step3 := commP b a x px in
-                  step1 @ step2 @ step3 = transport2 P (comm_refl a b x) abxP).
+		 cnsP b (a ;; x) (cnsP a x px)).
+    Variable (comm_reflP :
+                forall (a b : A) (x : FBagL A) (px : P x),
+                  transport2 P (comm_refl a b x) (cnsP a b ;; x (cnsP b x px))
+                  =
+                  concat_Y (comm a b x)
+                           (comm b a x)
+                           (commP a b x px)
+                           (commP b a x px)).
 
     (* Induction principle *)
     Fixpoint FBagL_ind
@@ -122,16 +173,12 @@ Module Export FBagL.
     Defined.
 
 
-    Axiom FSetC_ind_beta_comm_refl : forall (a b: A) (x : FBagL A),
+(*    Axiom FSetC_ind_beta_comm_refl : forall (a b: A) (x : FBagL A),
         (apD02 FBagL_ind (comm_refl a b x)) =
         (coh a b x @ comm_reflP a b x (FBagL_ind x)) @ coh' a b x.
-
+*)
 
   End FBagL_induction.
-
-
-
-
 
   Section FBagL_recursion.
     Variable (A : Type)
@@ -141,46 +188,27 @@ Module Export FBagL.
              (commP : forall (a b: A) (x : P), cnsP a (cnsP b x) = cnsP b (cnsP a x))
              (comm_reflP:  forall (a b : A) (x: P), commP a b x @ commP b a x = idpath).
 
-
-
     (* Recursion princople *)
     Definition FBagL_rec : FBagL A -> P.
     Proof.
-      simple refine (FBagL_ind A _ _ _ _ _);
-        try (intros ; simple refine ((transport_const _ _) @ _)) ; cbn.
+      simple refine (FBagL_ind A _ _ _ _ _).
       - apply nilP.
       - apply (fun a _ px => cnsP a px).
-      - apply commP.
+      - intros.
+        refine ((transport_const _ _) @ commP _ _ _).
       - intros. simpl.
-        assert (Hapd1: transport2 (fun _ : FBagL A => P) (comm_refl a b x) (cnsP a (cnsP b px))
-               = transport2 (fun _ : FBagL A => P) (comm_refl a b x) (cnsP a (cnsP b px))
-                            @ apD (fun _ : FBagL A => (cnsP a (cnsP b px))) 1%path)
-               by hott_simpl.
-        rewrite Hapd1.
-        refine (_ @ apD02 _ _ ).
-
-         transitivity ((transport_pp
-                         (fun _ : FBagL A => P) (comm a b x)
-                         (comm b a x) (cnsP a (cnsP b px)))
-                         @ ((ap (transport (fun _ : FBagL A => P) (comm b a x))
-                         (apD (fun _ : FBagL A => cnsP a (cnsP b px)) (comm a b x)))
-                              @ apD (fun _ : FBagL A => cnsP a (cnsP b px)) (comm b a x))).
-         + rewrite !concat_pp_p.  f_ap.
-           rewrite apD_const. rewrite ap_const.
-           rewrite ap_pp.
-           hott_simpl.  rewrite !concat_pp_p.  f_ap.
-           rewrite apD_const. hott_simpl.
-           assert ((transport (fun _ : FBagL A => P) (comm b a x)) == idmap).
-           { intro z. apply transport_const. }
-           rewrite (ap_f_eq_l _ _ (fun z => transport_const _ _ )).
-           hott_simpl.
-           rewrite concat_pp_p.
-           rewrite comm_reflP. hott_simpl.
-         + symmetry.
-           refine (apD_pp (fun _ : FBagL A => cnsP a (cnsP b px)) (comm a b x) (comm b a x) @ _).
-           hott_simpl.
+        apply (cancelR _ _ (transport_const 1 (cnsP a (cnsP b px)))).
+        refine ((transport2_const (comm_refl a b x) (cnsP a (cnsP b px)))^ @ _).
+        refine (transport_const_pp _ _ _ @ _).
+        refine (_ @ (concat_p1 _)^).
+        unfold concat_Y.
+        refine (concat_pp_p _ _ _ @ ap _ _).
+        rewrite (ap_f_eq_l _ _ (fun z => transport_const _ _ )).
+        hott_simpl.
+        rewrite !concat_pp_p.
+        rewrite comm_reflP.
+        refine (ap _ (concat_p1 _)^).
     Defined.
-
   End FBagL_recursion.
 
 End FBagL.
